@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JardisSupport\Validation\Tests\Unit\Validator;
 
+use DateTimeImmutable;
 use JardisSupport\Validation\Validator\DateTime;
 use PHPUnit\Framework\TestCase;
 
@@ -139,6 +140,64 @@ final class DateTimeTest extends TestCase
         $result = $this->validator->validateValue(['array']);
         $this->assertIsString($result);
         $this->assertStringContainsString('string', $result);
+
+        $result = $this->validator->validateValue(true);
+        $this->assertIsString($result);
+    }
+
+    public function testDateTimeObjectIsValid(): void
+    {
+        $result = $this->validator->validateValue(new \DateTime('2024-06-15'));
+        $this->assertNull($result);
+    }
+
+    public function testDateTimeImmutableObjectIsValid(): void
+    {
+        $result = $this->validator->validateValue(new DateTimeImmutable('2024-06-15'));
+        $this->assertNull($result);
+    }
+
+    public function testDateTimeObjectWithMinMax(): void
+    {
+        $options = ['format' => 'Y-m-d', 'min' => '2024-01-01', 'max' => '2024-12-31'];
+
+        // Within range
+        $result = $this->validator->validateValue(new \DateTime('2024-06-15'), $options);
+        $this->assertNull($result);
+
+        // Before min
+        $result = $this->validator->validateValue(new \DateTime('2023-12-31'), $options);
+        $this->assertIsString($result);
+        $this->assertStringContainsString('after', $result);
+
+        // After max
+        $result = $this->validator->validateValue(new \DateTime('2025-01-01'), $options);
+        $this->assertIsString($result);
+        $this->assertStringContainsString('before', $result);
+    }
+
+    public function testDateTimeObjectBoundaryDates(): void
+    {
+        $options = ['format' => 'Y-m-d', 'min' => '2024-01-01', 'max' => '2024-12-31'];
+
+        // Exact min
+        $result = $this->validator->validateValue(new \DateTime('2024-01-01'), $options);
+        $this->assertNull($result);
+
+        // Exact max
+        $result = $this->validator->validateValue(new \DateTime('2024-12-31'), $options);
+        $this->assertNull($result);
+    }
+
+    public function testDateTimeImmutableObjectWithMinMax(): void
+    {
+        $options = ['format' => 'Y-m-d', 'min' => '2024-01-01', 'max' => '2024-12-31'];
+
+        $result = $this->validator->validateValue(new DateTimeImmutable('2024-06-15'), $options);
+        $this->assertNull($result);
+
+        $result = $this->validator->validateValue(new DateTimeImmutable('2023-06-15'), $options);
+        $this->assertIsString($result);
     }
 
     public function testCustomErrorMessage(): void
