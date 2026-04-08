@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+namespace JardisSupport\Validation\Validator;
+
+use JardisSupport\Contract\Validation\ValueValidatorInterface;
+
+/**
+ * Validates that a value equals a specific expected value.
+ * Useful for password confirmation, terms acceptance, etc.
+ */
+final class Equals implements ValueValidatorInterface
+{
+    /**
+     * Static helper: Create options for specific value.
+     *
+     * @return array<string, mixed>
+     */
+    public static function value(mixed $expectedValue): array
+    {
+        return ['expectedValue' => $expectedValue];
+    }
+
+    /**
+     * Static helper: Use strict comparison.
+     *
+     * @return array<string, mixed>
+     */
+    public static function strict(mixed $expectedValue): array
+    {
+        return ['expectedValue' => $expectedValue, 'strict' => true];
+    }
+
+    /**
+     * Static helper: Use loose comparison.
+     *
+     * @return array<string, mixed>
+     */
+    public static function loose(mixed $expectedValue): array
+    {
+        return ['expectedValue' => $expectedValue, 'strict' => false];
+    }
+
+    public function validateValue(mixed $value, array $options = []): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        // If no expected value is configured, allow any value
+        if (!array_key_exists('expectedValue', $options)) {
+            return null;
+        }
+
+        $expectedValue = $options['expectedValue'];
+
+        $message = $options['message'] ?? 'Value does not match expected value';
+        $strict = $options['strict'] ?? true;
+
+        $isEqual = $strict
+            ? $value === $expectedValue
+            : $value == $expectedValue;
+
+        if (!$isEqual) {
+            return $message;
+        }
+
+        return null;
+    }
+}
