@@ -64,7 +64,7 @@ final class ObjectValidator
 
             // Traverse nested objects
             $nestedErrors = $this->traverseProperties($object, $context);
-            $errors = array_merge($errors, $nestedErrors);
+            $errors = $this->mergeErrors($errors, $nestedErrors);
 
             return [$className => $errors];
         } finally {
@@ -77,7 +77,7 @@ final class ObjectValidator
      *
      * @param object $object
      * @param ValidationContext $context
-     * @return array<string, mixed>
+     * @return array<int|string, mixed>
      */
     private function traverseProperties(object $object, ValidationContext $context): array
     {
@@ -93,10 +93,10 @@ final class ObjectValidator
 
             if (is_object($value)) {
                 $nestedErrors = $this->validateRecursive($value, $context);
-                $errors = array_merge($errors, $nestedErrors);
+                $errors = $this->mergeErrors($errors, $nestedErrors);
             } elseif (is_array($value)) {
                 $arrayErrors = $this->validateArray($value, $context);
-                $errors = array_merge($errors, $arrayErrors);
+                $errors = $this->mergeErrors($errors, $arrayErrors);
             }
         }
 
@@ -108,7 +108,7 @@ final class ObjectValidator
      *
      * @param array<mixed> $values
      * @param ValidationContext $context
-     * @return array<string, mixed>
+     * @return array<int|string, mixed>
      */
     private function validateArray(array $values, ValidationContext $context): array
     {
@@ -117,14 +117,47 @@ final class ObjectValidator
         foreach ($values as $key => $value) {
             if (is_object($value)) {
                 $nestedErrors = $this->validateRecursive($value, $context);
-                $errors = array_merge($errors, $nestedErrors);
+                $errors = $this->mergeErrors($errors, $nestedErrors);
             } elseif (is_array($value)) {
                 $arrayErrors = $this->validateArray($value, $context);
-                $errors = array_merge($errors, $arrayErrors);
+                $errors = $this->mergeErrors($errors, $arrayErrors);
             }
         }
 
         return $errors;
+    }
+
+    /**
+     * Merges error arrays without losing entries on string key collisions.
+     *
+     * array_merge() lets the second value win for identical string keys — a
+     * field name colliding with the lcfirst short class name of a nested
+     * object would silently overwrite the field error. Colliding arrays are
+     * merged recursively, colliding scalars are collected side by side.
+     *
+     * @param array<int|string, mixed> $base
+     * @param array<int|string, mixed> $additional
+     * @return array<int|string, mixed>
+     */
+    private function mergeErrors(array $base, array $additional): array
+    {
+        foreach ($additional as $key => $value) {
+            if (is_int($key)) {
+                $base[] = $value;
+                continue;
+            }
+
+            if (!array_key_exists($key, $base)) {
+                $base[$key] = $value;
+                continue;
+            }
+
+            $existing = is_array($base[$key]) ? $base[$key] : [$base[$key]];
+            $incoming = is_array($value) ? $value : [$value];
+            $base[$key] = $this->mergeErrors($existing, $incoming);
+        }
+
+        return $base;
     }
 
     /**
