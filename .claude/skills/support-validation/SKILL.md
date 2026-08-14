@@ -11,16 +11,7 @@ next: []
 # VALIDATION_COMPONENT_SKILL
 > jardissupport/validation | NS: `JardisSupport\Validation` | PHP 8.2+
 
-## ARCHITECTURE
-```
-ObjectValidator (exception-safe via try/finally)
-  └─ ValidatorRegistry (class → validator mapping, parent/interface matching)
-       └─ CompositeFieldValidator (fluent API, singleton validator instances)
-            └─ Internal\FieldBuilder (chains validators, $options parameter)
-                 └─ ValueValidators (singletons)
-Internal\ValidationContext — tracks spl_object_id() for circular refs
-  Constructor: new ValidationContext(maxDepth: 100)
-```
+Circular object references are detected; default max traversal depth is 100.
 
 ## CORE API
 ```php
