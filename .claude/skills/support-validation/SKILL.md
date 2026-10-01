@@ -4,7 +4,7 @@ description: Object graph validation with composite validators, fluent API. Use 
 user-invocable: false
 zone: post-active
 persona: C
-prerequisites: [rules-architecture, rules-patterns]
+prerequisites: [foundation-architecture, foundation-patterns]
 next: []
 ---
 
