@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace JardisSupport\Validation\Validator;
 
+use JardisSupport\Contract\Validation\MissingValueValidatorInterface;
 use JardisSupport\Contract\Validation\ValueValidatorInterface;
 
 /**
  * Validates that a value is not null.
  */
-final class NotBlank implements ValueValidatorInterface
+final class NotBlank implements ValueValidatorInterface, MissingValueValidatorInterface
 {
     /**
      * Default validation (not null).

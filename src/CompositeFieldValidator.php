@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JardisSupport\Validation;
 
+use JardisSupport\Contract\Validation\MissingValueValidatorInterface;
 use JardisSupport\Contract\Validation\ValidatorInterface;
 use JardisSupport\Contract\Validation\ValueValidatorInterface;
 use JardisSupport\Contract\Validation\ValidationResult;
@@ -128,10 +129,11 @@ final class CompositeFieldValidator implements ValidatorInterface
         }
 
         $errors = [];
+        $kinds = [];
 
         // Check break validators first
         if ($this->shouldBreak($data)) {
-            return new ValidationResult($errors);
+            return new ValidationResult($errors, $kinds);
         }
 
         // Execute normal validators
@@ -152,11 +154,14 @@ final class CompositeFieldValidator implements ValidatorInterface
                         $errors[$fieldName] = [];
                     }
                     $errors[$fieldName][] = $error;
+                    $kinds[$fieldName][] = $validator instanceof MissingValueValidatorInterface
+                        ? ValidationResult::KIND_MISSING
+                        : ValidationResult::KIND_INVALID;
                 }
             }
         }
 
-        return new ValidationResult($errors);
+        return new ValidationResult($errors, $kinds);
     }
 
     /**
