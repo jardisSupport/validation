@@ -59,6 +59,18 @@ if (!$result->isValid()) {
 }
 ```
 
+## Result: errors and kinds
+
+`ValidationResult::getKinds()` mirrors `getErrors()` leaf for leaf (same keys, same nesting). Each leaf is
+`ValidationResult::KIND_MISSING` (`'missing'`, the value is absent: reported by validators implementing
+`MissingValueValidatorInterface`, currently `NotBlank`) or `ValidationResult::KIND_INVALID` (`'invalid'`, every
+other validator, including `NotEmpty`). Requires `jardissupport/contracts ^2.3`.
+
+```php
+$result->getErrors(); // ['user' => ['name' => ['Field can not be empty']]]
+$result->getKinds();  // ['user' => ['name' => ['missing']]]
+```
+
 ## Advanced Usage
 
 ```php
