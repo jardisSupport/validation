@@ -9,14 +9,14 @@
 
 > Part of **[Jardis](https://jardis.io)** — the Domain-Driven Design platform for PHP. You model your domain; Jardis generates the production-ready hexagonal code (DTOs, Command/Query handlers, repositories, persistence). This package is part of the open-source foundation that generated code runs on.
 
-Object graph validation for PHP with recursive traversal. Walks entire object hierarchies — including nested aggregates and collections — applying field-level rules with 21 built-in validators. Purpose-built for aggregate validation in domain models. Fluent composition, circular reference detection, and break-on-first-error mode.
+Object graph validation for PHP with recursive traversal. Walks entire object hierarchies — including nested aggregates and collections — applying field-level rules with 22 built-in validators. Purpose-built for aggregate validation in domain models. Fluent composition, circular reference detection, and break-on-first-error mode.
 
 ---
 
 ## Features
 
 - **Recursive Object Traversal** — validates nested objects and collections automatically, no manual wiring
-- **21 Built-in Validators** — NotBlank, Email, Url, Uuid, Range, Length, Format, DateTime, Ip, Iban, CreditCard, PhoneNumber, Json, Alphanumeric, Contain, Count, Positive, Equals, UniqueItems, NotEmpty, Callback
+- **22 Built-in Validators** — NotBlank, Email, Url, Uuid, Range, Length, Format, DateTime, Ip, Iban, CreditCard, PhoneNumber, Json, Alphanumeric, Contain, Count, Positive, Equals, UniqueItems, NotEmpty, ChildPresence, Callback
 - **Fluent Field Rules** — `CompositeFieldValidator` composes per-field validators with a chainable `field()` API
 - **Break Mode** — stop at first error for guard-style validation before deeper checks
 - **ValidatorRegistry** — maps classes (and parent types) to their validators with exact and inheritance-based matching
@@ -63,12 +63,20 @@ if (!$result->isValid()) {
 
 `ValidationResult::getKinds()` mirrors `getErrors()` leaf for leaf (same keys, same nesting). Each leaf is
 `ValidationResult::KIND_MISSING` (`'missing'`, the value is absent: reported by validators implementing
-`MissingValueValidatorInterface`, currently `NotBlank`) or `ValidationResult::KIND_INVALID` (`'invalid'`, every
+`MissingValueValidatorInterface`, currently `NotBlank` and `ChildPresence`) or `ValidationResult::KIND_INVALID` (`'invalid'`, every
 other validator, including `NotEmpty`). Requires `jardissupport/contracts ^2.3`.
 
 ```php
 $result->getErrors(); // ['user' => ['name' => ['Field can not be empty']]]
 $result->getKinds();  // ['user' => ['name' => ['missing']]]
+```
+
+### Required child property
+
+`ChildPresence` requires a non-null property on an object, or on every element of a list, held by the validated field:
+
+```php
+$validator->field('items')->validates(ChildPresence::class, ChildPresence::requiredChild('product'));
 ```
 
 ## Advanced Usage

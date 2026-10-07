@@ -1,6 +1,6 @@
 # jardissupport/validation
 
-Object graph validation via Reflection — no annotations, no interfaces on domain classes, `ObjectValidator` + `ValidatorRegistry` + `CompositeFieldValidator` compose 21 stateless `ValueValidator` singletons.
+Object graph validation via Reflection — no annotations, no interfaces on domain classes, `ObjectValidator` + `ValidatorRegistry` + `CompositeFieldValidator` compose 22 stateless `ValueValidator` singletons.
 
 ## Usage essentials
 

@@ -42,11 +42,12 @@ $result->getErrors();  // ['order' => ['customer' => ['email' => ['Invalid email
 5. Reflection     direct property   ($email, $id)
 ```
 
-## VALIDATORS (21)
+## VALIDATORS (22)
 | Validator | Factory Methods |
 |-----------|----------------|
 | `NotBlank` | `required($msg)` |
 | `NotEmpty` | `trimmed()`, `strict()` |
+| `ChildPresence` | `requiredChild($childField, $msg)` |
 | `Email` | `basic()`, `withDnsCheck()`, `strict()` |
 | `Length` | `between()`, `min()`, `max()`, `exact()`, `zipCode()`, `phoneNumber()` |
 | `Range` | `between()`, `min()`, `max()` |
@@ -86,8 +87,14 @@ class UniqueSku implements ValueValidatorInterface {
 }
 ```
 
+## RESULT KINDS
+`ValidationResult::getKinds()` mirrors `getErrors()` leaf for leaf (same keys, same nesting); each leaf is
+`ValidationResult::KIND_MISSING` (`'missing'`: value absent) or `KIND_INVALID` (`'invalid'`: all other failures).
+Validators implementing `MissingValueValidatorInterface` report `missing`: `NotBlank`, `ChildPresence`.
+Requires `jardissupport/contracts ^2.3`.
+
 ## CONVENTIONS
-- **Null-safe:** All validators return `null` when value is `null` — except `NotBlank` and `NotEmpty`
+- **Null-safe:** All validators return `null` when value is `null` — except `NotBlank` and `NotEmpty` (`ChildPresence` is null-safe too)
 - **Custom messages:** When `$options['message']` is set → return it on EVERY error; detail messages only as fallback
 - **Interface:** `ValueValidatorInterface::validateValue(mixed $value, array $options = []): ?string`
 - **FieldBuilder param:** named `$options` (not `$args`)
