@@ -30,9 +30,9 @@ final class ObjectValidator
     public function validate(object $object): ValidationResult
     {
         $context = $this->context ?? new ValidationContext();
-        $errors = $this->validateRecursive($object, $context);
+        [$errors, $kinds] = $this->validateRecursive($object, $context);
 
-        return new ValidationResult($this->filterEmptyErrors($errors));
+        return new ValidationResult($this->filterEmptyErrors($errors), $this->filterEmptyErrors($kinds));
     }
 
     /**
@@ -40,13 +40,13 @@ final class ObjectValidator
      *
      * @param object $object
      * @param ValidationContext $context
-     * @return array<string, mixed>
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>} [errors tree, kinds tree]
      */
     private function validateRecursive(object $object, ValidationContext $context): array
     {
         // Prevent circular references
         if ($context->hasVisited($object)) {
-            return [];
+            return [[], []];
         }
 
         $context->markVisited($object);
@@ -55,18 +55,21 @@ final class ObjectValidator
         try {
             $className = $this->getShortClassName($object);
             $errors = [];
+            $kinds = [];
 
             // Execute registered validator for this object type
             if ($validator = $this->registry->getValidator($object)) {
                 $result = $validator->validate($object);
                 $errors = $result->getErrors();
+                $kinds = $result->getKinds();
             }
 
             // Traverse nested objects
-            $nestedErrors = $this->traverseProperties($object, $context);
+            [$nestedErrors, $nestedKinds] = $this->traverseProperties($object, $context);
             $errors = $this->mergeErrors($errors, $nestedErrors);
+            $kinds = $this->mergeErrors($kinds, $nestedKinds);
 
-            return [$className => $errors];
+            return [[$className => $errors], [$className => $kinds]];
         } finally {
             $context->exitLevel();
         }
@@ -77,11 +80,12 @@ final class ObjectValidator
      *
      * @param object $object
      * @param ValidationContext $context
-     * @return array<int|string, mixed>
+     * @return array{0: array<int|string, mixed>, 1: array<int|string, mixed>} [errors tree, kinds tree]
      */
     private function traverseProperties(object $object, ValidationContext $context): array
     {
         $errors = [];
+        $kinds = [];
         $reflection = new ReflectionObject($object);
         $properties = $reflection->getProperties(
             ReflectionProperty::IS_PROTECTED | ReflectionProperty::IS_PUBLIC
@@ -92,15 +96,17 @@ final class ObjectValidator
             $value = $property->getValue($object);
 
             if (is_object($value)) {
-                $nestedErrors = $this->validateRecursive($value, $context);
+                [$nestedErrors, $nestedKinds] = $this->validateRecursive($value, $context);
                 $errors = $this->mergeErrors($errors, $nestedErrors);
+                $kinds = $this->mergeErrors($kinds, $nestedKinds);
             } elseif (is_array($value)) {
-                $arrayErrors = $this->validateArray($value, $context);
+                [$arrayErrors, $arrayKinds] = $this->validateArray($value, $context);
                 $errors = $this->mergeErrors($errors, $arrayErrors);
+                $kinds = $this->mergeErrors($kinds, $arrayKinds);
             }
         }
 
-        return $errors;
+        return [$errors, $kinds];
     }
 
     /**
@@ -108,23 +114,26 @@ final class ObjectValidator
      *
      * @param array<mixed> $values
      * @param ValidationContext $context
-     * @return array<int|string, mixed>
+     * @return array{0: array<int|string, mixed>, 1: array<int|string, mixed>} [errors tree, kinds tree]
      */
     private function validateArray(array $values, ValidationContext $context): array
     {
         $errors = [];
+        $kinds = [];
 
         foreach ($values as $key => $value) {
             if (is_object($value)) {
-                $nestedErrors = $this->validateRecursive($value, $context);
+                [$nestedErrors, $nestedKinds] = $this->validateRecursive($value, $context);
                 $errors = $this->mergeErrors($errors, $nestedErrors);
+                $kinds = $this->mergeErrors($kinds, $nestedKinds);
             } elseif (is_array($value)) {
-                $arrayErrors = $this->validateArray($value, $context);
+                [$arrayErrors, $arrayKinds] = $this->validateArray($value, $context);
                 $errors = $this->mergeErrors($errors, $arrayErrors);
+                $kinds = $this->mergeErrors($kinds, $arrayKinds);
             }
         }
 
-        return $errors;
+        return [$errors, $kinds];
     }
 
     /**
