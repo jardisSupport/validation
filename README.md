@@ -110,6 +110,27 @@ $result = $validator->validate($order);
 // Errors keyed by short class name: ['order' => [...], 'orderLine' => [...]]
 ```
 
+### List index in the error path (opt-in, since 1.4)
+
+By default, objects inside lists are keyed by short class name and siblings are merged, so the
+element index is lost. Pass `indexedLists: true` as third constructor argument to keep it:
+
+```php
+$validator = new ObjectValidator($registry, indexedLists: true);
+$result = $validator->validate($order); // second order line invalid
+
+$result->getErrors();
+// ['order' => ['orderLine[1]' => ['quantity' => ['Must be at least 1']]]]
+$result->getKinds();
+// ['order' => ['orderLine[1]' => ['quantity' => ['invalid']]]]  (same keys as getErrors())
+```
+
+Key schema: `{shortName}[{index}]`, where `{index}` is the array key of the element in its list.
+Nested lists extend the path by nesting (`'item[2]' => ['part[0]' => [...]]`); a list inside a list
+appends segments (`item[0][1]`). Objects held directly in a property keep the plain `{shortName}` key.
+Siblings are never merged; `getErrors()` and `getKinds()` stay structurally identical. Without the
+flag (default `false`) the result is byte-identical to 1.3.
+
 ## Documentation
 
 Full documentation, guides, and API reference:
