@@ -79,6 +79,16 @@ $result->getKinds();  // ['user' => ['name' => ['missing']]]
 $validator->field('items')->validates(ChildPresence::class, ChildPresence::requiredChild('product'));
 ```
 
+### Date and time
+
+`DateTime` offers three static option helpers: `iso8601()` (`Y-m-d\TH:i:sP`, numeric offset only), `dateOnly()` (`Y-m-d`, calendar-strict: `2026-02-30` is rejected) and `rfc3339()` for the JSON/JavaScript wire format:
+
+```php
+$validator->field('occurredAt')->validates(DateTime::class, DateTime::rfc3339());
+```
+
+`rfc3339()` accepts `YYYY-MM-DDTHH:MM:SS` with optional fractional seconds and the offset `Z` or `±HH:MM` (`T`/`Z` may be lower case, RFC 3339 section 5.6), e.g. `2026-10-12T10:00:00Z`, `2026-10-12T10:00:00.123+02:00`. It rejects a missing offset, calendar-invalid values (`2026-02-30T10:00:00Z`), leap seconds (`:60`), other shapes and non-strings; `null` passes. `min`/`max` (any string `DateTimeImmutable` parses) and `message` work as with the other modes.
+
 ## Advanced Usage
 
 ```php
