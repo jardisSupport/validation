@@ -321,4 +321,91 @@ final class DateTimeTest extends TestCase
         $result = $this->validator->validateValue('2024', ['format' => 'Y']);
         $this->assertNull($result);
     }
+
+    public function testRfc3339AcceptsWireFormats(): void
+    {
+        $valid = [
+            '2026-10-12T10:00:00Z',
+            '2026-10-12T10:00:00z',
+            '2026-10-12t10:00:00Z',
+            '2026-10-12T10:00:00.123Z',
+            '2026-10-12T10:00:00+02:00',
+            '2026-10-12T10:00:00.123456-05:30',
+            '2024-02-29T23:59:59Z',
+        ];
+
+        foreach ($valid as $date) {
+            $this->assertNull($this->validator->validateValue($date, DateTime::rfc3339()), "Expected '{$date}' valid");
+        }
+    }
+
+    public function testRfc3339RejectsInvalidForms(): void
+    {
+        $invalid = [
+            '2026-02-30T10:00:00Z',
+            '2025-02-29T10:00:00Z',
+            '2026-13-01T10:00:00Z',
+            '2026-10-12T24:00:00Z',
+            '2026-10-12T10:60:00Z',
+            '2026-10-12T10:00:60Z',
+            '2026-10-12T10:00:00+24:00',
+            '2026-10-12T10:00:00+02:60',
+            '2026-10-12T10:00:00',
+            '2026-10-12T10:00:00.Z',
+            '2026-10-12T10:00:00+0200',
+            '2026-10-12 10:00:00',
+            '2026-10-12 10:00:00Z',
+            '2026-10-12',
+            '12.10.2026',
+            ' 2026-10-12T10:00:00Z',
+            "2026-10-12T10:00:00Z\n",
+            '',
+        ];
+
+        foreach ($invalid as $date) {
+            $this->assertIsString(
+                $this->validator->validateValue($date, DateTime::rfc3339()),
+                'Expected ' . var_export($date, true) . ' invalid'
+            );
+        }
+    }
+
+    public function testRfc3339RejectsNonStringsAndAllowsNull(): void
+    {
+        $this->assertIsString($this->validator->validateValue(123, DateTime::rfc3339()));
+        $this->assertIsString($this->validator->validateValue(['x'], DateTime::rfc3339()));
+        $this->assertNull($this->validator->validateValue(null, DateTime::rfc3339()));
+    }
+
+    public function testRfc3339CustomMessageAndRange(): void
+    {
+        $options = DateTime::rfc3339() + ['message' => 'bad ts'];
+        $this->assertSame('bad ts', $this->validator->validateValue('nope', $options));
+
+        $range = DateTime::rfc3339() + ['min' => '2026-01-01T00:00:00Z', 'max' => '2026-12-31T23:59:59Z'];
+        $this->assertNull($this->validator->validateValue('2026-06-01T12:00:00+02:00', $range));
+        $this->assertStringContainsString('after', (string) $this->validator->validateValue('2025-12-31T23:59:59Z', $range));
+        $this->assertStringContainsString('before', (string) $this->validator->validateValue('2027-01-01T00:00:00Z', $range));
+    }
+
+    public function testRfc3339AcceptsDateTimeObjects(): void
+    {
+        $this->assertNull($this->validator->validateValue(new DateTimeImmutable('2026-10-12'), DateTime::rfc3339()));
+    }
+
+    public function testDateOnlyIsCalendarStrict(): void
+    {
+        $this->assertNull($this->validator->validateValue('2026-10-12', DateTime::dateOnly()));
+        $this->assertNull($this->validator->validateValue('2024-02-29', DateTime::dateOnly()));
+        $this->assertIsString($this->validator->validateValue('2026-02-30', DateTime::dateOnly()));
+        $this->assertIsString($this->validator->validateValue('2025-02-29', DateTime::dateOnly()));
+        $this->assertIsString($this->validator->validateValue('2026-04-31', DateTime::dateOnly()));
+    }
+
+    public function testIso8601BehaviourUnchanged(): void
+    {
+        $this->assertNull($this->validator->validateValue('2026-10-12T10:00:00+02:00', DateTime::iso8601()));
+        $this->assertIsString($this->validator->validateValue('2026-10-12T10:00:00Z', DateTime::iso8601()));
+        $this->assertIsString($this->validator->validateValue('2026-10-12T10:00:00.123+02:00', DateTime::iso8601()));
+    }
 }
