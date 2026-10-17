@@ -17,13 +17,22 @@ use ReflectionProperty;
  * `{shortName}[{index}]` in both the error tree and the kinds tree (nested lists
  * append further `[{index}]` segments). Siblings stay separate instead of being
  * merged. Default (`false`) keeps the historic merged `{shortName}` keys.
+ *
+ * With `$fieldPaths = true` (opt-in) every nested level is keyed by the name of
+ * the property that holds it instead of the short class name, and every list
+ * element by `{property}[{index}]` (nested lists append further `[{index}]`
+ * segments), at any depth: `items[1].parts[0].name`. Two properties of the same
+ * class therefore stay separate. The root object keeps its `lcfirst` short name
+ * (strip it via `ValidationResult::toFields($root)`). Field path mode implies
+ * indexed lists; `$indexedLists` has no additional effect then.
  */
 final class ObjectValidator
 {
     public function __construct(
         private readonly ValidatorRegistry $registry,
         private readonly ?ValidationContext $context = null,
-        private readonly bool $indexedLists = false
+        private readonly bool $indexedLists = false,
+        private readonly bool $fieldPaths = false
     ) {
     }
 
@@ -36,7 +45,7 @@ final class ObjectValidator
     public function validate(object $object): ValidationResult
     {
         $context = $this->context ?? new ValidationContext();
-        [$errors, $kinds] = $this->validateRecursive($object, $context, '');
+        [$errors, $kinds] = $this->validateRecursive($object, $context, $this->getShortClassName($object));
 
         return new ValidationResult($this->filterEmptyErrors($errors), $this->filterEmptyErrors($kinds));
     }
@@ -46,10 +55,10 @@ final class ObjectValidator
      *
      * @param object $object
      * @param ValidationContext $context
-     * @param string $indexSuffix list index path of this object, e.g. "[1]" or "[0][2]" ('' outside lists)
+     * @param string $segment key of this object in the trees, e.g. "item", "item[1]" or "items[1]"
      * @return array{0: array<string, mixed>, 1: array<string, mixed>} [errors tree, kinds tree]
      */
-    private function validateRecursive(object $object, ValidationContext $context, string $indexSuffix): array
+    private function validateRecursive(object $object, ValidationContext $context, string $segment): array
     {
         // Prevent circular references
         if ($context->hasVisited($object)) {
@@ -60,7 +69,6 @@ final class ObjectValidator
         $context->enterLevel();
 
         try {
-            $className = $this->getShortClassName($object) . $indexSuffix;
             $errors = [];
             $kinds = [];
 
@@ -76,7 +84,7 @@ final class ObjectValidator
             $errors = $this->mergeErrors($errors, $nestedErrors);
             $kinds = $this->mergeErrors($kinds, $nestedKinds);
 
-            return [[$className => $errors], [$className => $kinds]];
+            return [[$segment => $errors], [$segment => $kinds]];
         } finally {
             $context->exitLevel();
         }
@@ -102,12 +110,18 @@ final class ObjectValidator
             $property->setAccessible(true);
             $value = $property->getValue($object);
 
+            $name = $property->getName();
+
             if (is_object($value)) {
-                [$nestedErrors, $nestedKinds] = $this->validateRecursive($value, $context, '');
+                [$nestedErrors, $nestedKinds] = $this->validateRecursive(
+                    $value,
+                    $context,
+                    $this->fieldPaths ? $name : $this->getShortClassName($value)
+                );
                 $errors = $this->mergeErrors($errors, $nestedErrors);
                 $kinds = $this->mergeErrors($kinds, $nestedKinds);
             } elseif (is_array($value)) {
-                [$arrayErrors, $arrayKinds] = $this->validateArray($value, $context, '');
+                [$arrayErrors, $arrayKinds] = $this->validateArray($value, $context, $name, '');
                 $errors = $this->mergeErrors($errors, $arrayErrors);
                 $kinds = $this->mergeErrors($kinds, $arrayKinds);
             }
@@ -121,23 +135,29 @@ final class ObjectValidator
      *
      * @param array<mixed> $values
      * @param ValidationContext $context
+     * @param string $propertyName name of the property holding the (outermost) list
      * @param string $indexSuffix index path of the enclosing list(s), e.g. "[1]" ('' for the property's list itself)
      * @return array{0: array<int|string, mixed>, 1: array<int|string, mixed>} [errors tree, kinds tree]
      */
-    private function validateArray(array $values, ValidationContext $context, string $indexSuffix): array
-    {
+    private function validateArray(
+        array $values,
+        ValidationContext $context,
+        string $propertyName,
+        string $indexSuffix
+    ): array {
         $errors = [];
         $kinds = [];
 
         foreach ($values as $key => $value) {
-            $elementSuffix = $this->indexedLists ? $indexSuffix . '[' . $key . ']' : '';
+            $elementSuffix = $this->indexedLists || $this->fieldPaths ? $indexSuffix . '[' . $key . ']' : '';
 
             if (is_object($value)) {
-                [$nestedErrors, $nestedKinds] = $this->validateRecursive($value, $context, $elementSuffix);
+                $segment = ($this->fieldPaths ? $propertyName : $this->getShortClassName($value)) . $elementSuffix;
+                [$nestedErrors, $nestedKinds] = $this->validateRecursive($value, $context, $segment);
                 $errors = $this->mergeErrors($errors, $nestedErrors);
                 $kinds = $this->mergeErrors($kinds, $nestedKinds);
             } elseif (is_array($value)) {
-                [$arrayErrors, $arrayKinds] = $this->validateArray($value, $context, $elementSuffix);
+                [$arrayErrors, $arrayKinds] = $this->validateArray($value, $context, $propertyName, $elementSuffix);
                 $errors = $this->mergeErrors($errors, $arrayErrors);
                 $kinds = $this->mergeErrors($kinds, $arrayKinds);
             }

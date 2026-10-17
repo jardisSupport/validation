@@ -42,6 +42,28 @@ final class FieldBuilder
     }
 
     /**
+     * Adds a validator applied to EVERY element of this list field.
+     * A failing element is reported under "{field}[{index}]" (index = list key),
+     * with the same kind rules as a single value. A field value that is not an
+     * array (e.g. null) is skipped — guard presence with validates() on the field.
+     *
+     * @param class-string<ValueValidatorInterface> $validatorClass
+     * @param array<mixed> $options Validator options
+     * @return self
+     */
+    public function each(string $validatorClass, array $options = []): self
+    {
+        $this->composite->registerFieldValidator(
+            $this->fieldName,
+            $validatorClass,
+            $options,
+            CompositeFieldValidator::VALIDATE_EACH
+        );
+
+        return $this;
+    }
+
+    /**
      * Returns to the composite validator to configure another field.
      *
      * @return FieldBuilder
