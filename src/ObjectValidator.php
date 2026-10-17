@@ -6,6 +6,7 @@ namespace JardisSupport\Validation;
 
 use JardisSupport\Validation\Internal\ValidationContext;
 use JardisSupport\Contract\Validation\ValidationResult;
+use JardisSupport\Contract\Validation\ValidatorInterface;
 use ReflectionObject;
 use ReflectionProperty;
 
@@ -26,7 +27,7 @@ use ReflectionProperty;
  * (strip it via `ValidationResult::toFields($root)`). Field path mode implies
  * indexed lists; `$indexedLists` has no additional effect then.
  */
-final class ObjectValidator
+final class ObjectValidator implements ValidatorInterface
 {
     public function __construct(
         private readonly ValidatorRegistry $registry,

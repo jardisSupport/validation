@@ -201,4 +201,27 @@ final class ObjectValidatorTest extends TestCase
 
         $this->assertFalse($result->isValid());
     }
+
+    public function testImplementsValidatorInterfaceAndIsUsableThroughThePort(): void
+    {
+        $object = new class {
+            public string $name = '';
+        };
+        $nameValidator = new class implements ValidatorInterface {
+            public function validate(object $data): ValidationResult
+            {
+                return new ValidationResult(['name' => ['Name is required']]);
+            }
+        };
+        $registry = (new ValidatorRegistry())->register(get_class($object), $nameValidator);
+        $objectValidator = new ObjectValidator($registry);
+
+        $this->assertInstanceOf(ValidatorInterface::class, $objectValidator);
+
+        $viaPort = static fn(ValidatorInterface $v): ValidationResult => $v->validate($object);
+        $result = $viaPort($objectValidator);
+
+        $this->assertFalse($result->isValid());
+        $this->assertSame($objectValidator->validate($object)->getErrors(), $result->getErrors());
+    }
 }

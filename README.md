@@ -163,6 +163,14 @@ $result->toFields('order');
 - `fieldPaths` implies indexed lists. Without the flag the result is byte-identical to 1.5.
 - `toFields()` needs `jardissupport/contracts` `^2.7` (required since 1.6).
 
+### Injection via the port
+
+`ObjectValidator` implements `JardisSupport\Contract\Validation\ValidatorInterface` (injection per port; from the next minor), so consumers can type against the port instead of the class:
+
+```php
+$fieldErrors = fn(ValidatorInterface $v) => $v->validate($order)->toFields('order');
+```
+
 ### Validating every element of a list (since 1.6)
 
 `each()` applies a field validator to **every element** of a list field. A failing element is

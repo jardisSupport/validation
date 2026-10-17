@@ -67,6 +67,19 @@ final class ObjectValidatorFieldPathTest extends TestCase
         $this->assertSame(['crate' => ['items[1]' => ['name' => ['name is blank']]]], $result->getErrors());
     }
 
+    public function testFieldListViaValidatorInterfaceNamesListElementField(): void
+    {
+        $validator = $this->validator();
+        $validate = static fn(ValidatorInterface $v, object $data): ValidationResult => $v->validate($data);
+
+        $result = $validate($validator, new Crate(items: [new Item('ok'), new Item('')]));
+
+        $this->assertSame(
+            [['field' => 'items[1].name', 'reason' => 'missing', 'message' => 'name is blank']],
+            $result->toFields('crate')
+        );
+    }
+
     public function testDepthTwoListInsideListElement(): void
     {
         $crate = new Crate(items: [
