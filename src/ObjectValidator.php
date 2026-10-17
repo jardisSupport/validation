@@ -218,6 +218,9 @@ final class ObjectValidator implements ValidatorInterface
     /**
      * Recursively filters out empty error arrays.
      *
+     * Emptiness is decided AFTER the recursion: a node whose children all
+     * collapse to nothing is itself empty (a valid graph yields no entries at any depth).
+     *
      * @param array<string, mixed> $errors
      * @return array<string, mixed>
      */
@@ -227,8 +230,9 @@ final class ObjectValidator implements ValidatorInterface
 
         foreach ($errors as $key => $value) {
             if (is_array($value)) {
-                if (!empty($value)) {
-                    $filtered[$key] = $this->filterEmptyErrors($value);
+                $value = $this->filterEmptyErrors($value);
+                if ($value !== []) {
+                    $filtered[$key] = $value;
                 }
             } else {
                 $filtered[$key] = $value;
