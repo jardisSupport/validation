@@ -141,6 +141,43 @@ appends segments (`item[0][1]`). Objects held directly in a property keep the pl
 Siblings are never merged; `getErrors()` and `getKinds()` stay structurally identical. Without the
 flag (default `false`) the result is byte-identical to 1.3.
 
+### Field paths in the error tree (opt-in, since 1.6)
+
+`indexedLists` still keys nested objects by class name, so two properties of the same class collide
+and the property name is lost. Pass `fieldPaths: true` to key every level by the **property name**
+that holds it, list elements by `{property}[{index}]`, at any depth:
+
+```php
+$validator = new ObjectValidator($registry, fieldPaths: true);
+$result = $validator->validate($order); // quantity of the second line invalid
+
+$result->getErrors();
+// ['order' => ['lines[1]' => ['quantity' => ['Must be at least 1']]]]
+$result->toFields('order');
+// [['field' => 'lines[1].quantity', 'reason' => 'invalid', 'message' => 'Must be at least 1']]
+```
+
+- Segment per level = property name; list element = `name[i]`, list in list = `name[i][j]`
+  (`a[1].b.c[0].d` through `toFields()`); `getKinds()` carries the same keys.
+- The root object keeps its `lcfirst` short name — strip it with `toFields($root)`.
+- `fieldPaths` implies indexed lists. Without the flag the result is byte-identical to 1.5.
+- `toFields()` needs `jardissupport/contracts` `^2.7` (required since 1.6).
+
+### Validating every element of a list (since 1.6)
+
+`each()` applies a field validator to **every element** of a list field. A failing element is
+reported under `{field}[{index}]`, with the same kinds as a single value (`missing` for
+presence validators, otherwise `invalid`). A field value that is not an array (e.g. `null`) is
+skipped — guard the field itself with `validates()`. An empty list yields no finding.
+
+```php
+$tagValidator = (new CompositeFieldValidator())
+    ->field('tags')->validates(Count::class, Count::min(1))
+                   ->each(Length::class, Length::between(2, 30));
+
+// tags = ['ok', 'x'] -> errors ['tags[1]' => ['...']], kinds ['tags[1]' => ['invalid']]
+```
+
 ## Documentation
 
 Full documentation, guides, and API reference:

@@ -20,6 +20,8 @@ final class CompositeFieldValidator implements ValidatorInterface
 {
     public const VALIDATE_NORMAL = 'normal';
     public const VALIDATE_BREAK = 'break';
+    /** Validators applied to every element of a list field, errors keyed `{field}[{index}]`. */
+    public const VALIDATE_EACH = 'each';
 
     /**
      * @var array<string, array<string, array<array{
@@ -30,6 +32,7 @@ final class CompositeFieldValidator implements ValidatorInterface
     private array $fieldValidators = [
         self::VALIDATE_NORMAL => [],
         self::VALIDATE_BREAK => [],
+        self::VALIDATE_EACH => [],
     ];
 
     /**
@@ -79,7 +82,8 @@ final class CompositeFieldValidator implements ValidatorInterface
         array $options = [],
         string $validateType = self::VALIDATE_NORMAL
     ): void {
-        if (!in_array($validateType, [self::VALIDATE_NORMAL, self::VALIDATE_BREAK], strict: true)) {
+        $types = [self::VALIDATE_NORMAL, self::VALIDATE_BREAK, self::VALIDATE_EACH];
+        if (!in_array($validateType, $types, strict: true)) {
             throw new \InvalidArgumentException("Invalid validation type: {$validateType}");
         }
 
@@ -150,18 +154,48 @@ final class CompositeFieldValidator implements ValidatorInterface
                 $error = $validator->validateValue($value, $config['options']);
 
                 if ($error !== null) {
-                    if (!isset($errors[$fieldName])) {
-                        $errors[$fieldName] = [];
-                    }
                     $errors[$fieldName][] = $error;
-                    $kinds[$fieldName][] = $validator instanceof MissingValueValidatorInterface
-                        ? ValidationResult::KIND_MISSING
-                        : ValidationResult::KIND_INVALID;
+                    $kinds[$fieldName][] = $this->kindOf($validator);
+                }
+            }
+        }
+
+        // Execute element validators: every element of a list field, keyed "{field}[{index}]"
+        foreach ($this->fieldValidators[self::VALIDATE_EACH] as $fieldName => $validatorConfigs) {
+            if ($this->shouldSkipField($data, $fieldName)) {
+                continue;
+            }
+
+            $list = $this->extractFieldValue($data, $fieldName);
+            if (!is_array($list)) {
+                continue;
+            }
+
+            foreach ($list as $index => $element) {
+                $key = $fieldName . '[' . $index . ']';
+                foreach ($validatorConfigs as $config) {
+                    $validator = $this->getValidatorInstance($config['class']);
+                    $error = $validator->validateValue($element, $config['options']);
+
+                    if ($error !== null) {
+                        $errors[$key][] = $error;
+                        $kinds[$key][] = $this->kindOf($validator);
+                    }
                 }
             }
         }
 
         return new ValidationResult($errors, $kinds);
+    }
+
+    /**
+     * Kind of a finding: missing for presence validators, invalid otherwise.
+     */
+    private function kindOf(ValueValidatorInterface $validator): string
+    {
+        return $validator instanceof MissingValueValidatorInterface
+            ? ValidationResult::KIND_MISSING
+            : ValidationResult::KIND_INVALID;
     }
 
     /**
