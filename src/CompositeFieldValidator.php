@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JardisSupport\Validation;
 
+use JardisSupport\Contract\Data\Absent;
 use JardisSupport\Contract\Validation\MissingValueValidatorInterface;
 use JardisSupport\Contract\Validation\ValidatorInterface;
 use JardisSupport\Contract\Validation\ValueValidatorInterface;
@@ -149,6 +150,11 @@ final class CompositeFieldValidator implements ValidatorInterface
 
             $value = $this->extractFieldValue($data, $fieldName);
 
+            // Update contract: a field the caller did not deliver is not checked
+            if ($value === Absent::Value) {
+                continue;
+            }
+
             foreach ($validatorConfigs as $config) {
                 $validator = $this->getValidatorInstance($config['class']);
                 $error = $validator->validateValue($value, $config['options']);
@@ -172,6 +178,10 @@ final class CompositeFieldValidator implements ValidatorInterface
             }
 
             foreach ($list as $index => $element) {
+                if ($element === Absent::Value) {
+                    continue;
+                }
+
                 $key = $fieldName . '[' . $index . ']';
                 foreach ($validatorConfigs as $config) {
                     $validator = $this->getValidatorInstance($config['class']);
@@ -213,6 +223,10 @@ final class CompositeFieldValidator implements ValidatorInterface
 
             $value = $this->extractFieldValue($data, $fieldName);
 
+            if ($value === Absent::Value) {
+                continue;
+            }
+
             foreach ($validatorConfigs as $config) {
                 $validator = $this->getValidatorInstance($config['class']);
                 if ($validator->validateValue($value, $config['options']) !== null) {
@@ -235,7 +249,8 @@ final class CompositeFieldValidator implements ValidatorInterface
     {
         if (in_array($fieldName, $this->excludeFields, strict: true)) {
             $identity = $this->extractFieldValue($data, $this->identityField);
-            return $identity === null;
+            // An identity the caller did not deliver counts as not given (create)
+            return $identity === null || $identity === Absent::Value;
         }
 
         return false;

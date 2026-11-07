@@ -71,6 +71,11 @@ $result->getErrors(); // ['user' => ['name' => ['Field can not be empty']]]
 $result->getKinds();  // ['user' => ['name' => ['missing']]]
 ```
 
+### Fields not delivered (`Absent`)
+
+A field whose value is `JardisSupport\Contract\Data\Absent::Value` (a partial write where the caller did not deliver it) is skipped: normal, break and each rules do not run for it, `ObjectValidator` does not descend into it, and no finding (neither `missing` nor `invalid`) is produced; `excludeFields()` treats an `Absent` identity field as not given. A delivered `null` is still a checked value, so `NotBlank` reports it as `missing`.
+This is a state of the payload and differs from `MissingValueValidatorInterface`, which marks a validator that reports a missing value.
+
 ### Required child property
 
 `ChildPresence` requires a non-null property on an object, or on every element of a list, held by the validated field:

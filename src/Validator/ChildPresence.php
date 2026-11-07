@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JardisSupport\Validation\Validator;
 
+use JardisSupport\Contract\Data\Absent;
 use JardisSupport\Contract\Validation\MissingValueValidatorInterface;
 use JardisSupport\Contract\Validation\ValueValidatorInterface;
 use ReflectionException;
@@ -34,11 +35,15 @@ final class ChildPresence implements ValueValidatorInterface, MissingValueValida
         $childField = $options['childField'] ?? null;
         $message = $options['message'] ?? 'Field can not be empty';
 
-        if ($value === null || $childField === null) {
+        if ($value === null || $value === Absent::Value || $childField === null) {
             return null;
         }
 
         foreach (is_array($value) ? $value : [$value] as $item) {
+            if ($item === Absent::Value) {
+                continue;
+            }
+
             if ($this->isChildMissing($item, $childField)) {
                 return $message;
             }
@@ -60,6 +65,7 @@ final class ChildPresence implements ValueValidatorInterface, MissingValueValida
             }
             $property = $reflection->getProperty($childField);
             $property->setAccessible(true);
+            // An Absent child was not delivered: no finding; a delivered null is missing
             return $property->getValue($item) === null;
         } catch (ReflectionException) {
             return true;
