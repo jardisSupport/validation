@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JardisSupport\Validation;
 
+use JardisSupport\Contract\Data\Absent;
 use JardisSupport\Validation\Internal\ValidationContext;
 use JardisSupport\Contract\Validation\ValidationResult;
 use JardisSupport\Contract\Validation\ValidatorInterface;
@@ -113,6 +114,11 @@ final class ObjectValidator implements ValidatorInterface
 
             $name = $property->getName();
 
+            if ($value === Absent::Value) {
+                // Not delivered: a state of the payload, not a child object (an enum case is an object)
+                continue;
+            }
+
             if (is_object($value)) {
                 [$nestedErrors, $nestedKinds] = $this->validateRecursive(
                     $value,
@@ -151,6 +157,10 @@ final class ObjectValidator implements ValidatorInterface
 
         foreach ($values as $key => $value) {
             $elementSuffix = $this->indexedLists || $this->fieldPaths ? $indexSuffix . '[' . $key . ']' : '';
+
+            if ($value === Absent::Value) {
+                continue;
+            }
 
             if (is_object($value)) {
                 $segment = ($this->fieldPaths ? $propertyName : $this->getShortClassName($value)) . $elementSuffix;
